@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Image from "next/image";
 import defaultLetterScale from "./lib/defaultLetterScale.json";
 import type { Course, GradingScale, StudentInfo } from "./lib/types";
 import { calculateGpa } from "./lib/gpa";
@@ -8,6 +9,7 @@ import { downloadReport } from "./lib/exportPdf";
 import { formatGpa } from "./lib/format";
 import { ScaleEditor } from "./components/ScaleEditor";
 import { CoursesTable } from "./components/CoursesTable";
+import { asset } from "./lib/basePath";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
@@ -48,8 +50,8 @@ export default function Home() {
     [courses, scale, letterToGpa],
   );
 
-  const handleDownload = () => {
-    downloadReport({ student, scale, letterToGpa, converted, gpa });
+  const handleDownload = async () => {
+    await downloadReport({ student, scale, letterToGpa, converted, gpa });
   };
 
   const inputCls =
@@ -58,14 +60,24 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="bg-[#0F2D52] text-white">
-        <div className="mx-auto max-w-5xl px-6 py-6">
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            Office of International Admissions
-            <span className="text-[#F1B82D]">.</span>
-          </h1>
-          <p className="mt-1 text-sm text-slate-200">
-            Foreign-to-US GPA calculator for Quinnipiac University.
-          </p>
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-6 px-6 py-6">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+              Office of International Admissions
+              <span className="text-[#F1B82D]">.</span>
+            </h1>
+            <p className="mt-1 text-sm text-slate-200">
+              Foreign-to-US GPA calculator for Quinnipiac University.
+            </p>
+          </div>
+          <Image
+            src={asset("/QUwhitebg.png")}
+            alt="Quinnipiac University"
+            width={1501}
+            height={406}
+            priority
+            className="h-12 w-auto shrink-0 sm:h-14"
+          />
         </div>
         <div className="h-1 bg-[#F1B82D]" />
       </header>

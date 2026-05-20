@@ -3,6 +3,7 @@ import autoTable from "jspdf-autotable";
 import type { GradingScale, StudentInfo } from "./types";
 import type { ConvertedCourse } from "./gpa";
 import { formatGpa } from "./format";
+import { asset } from "./basePath";
 
 interface ReportData {
   student: StudentInfo;
@@ -51,26 +52,48 @@ function semesterBreakdown(converted: ConvertedCourse[]): SemesterStat[] {
   });
 }
 
-export function downloadReport(data: ReportData) {
+async function loadImageData(url: string): Promise<string> {
+  const res = await fetch(url);
+  const blob = await res.blob();
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+export async function downloadReport(data: ReportData) {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
 
-  // Navy header band
+  const [logoData, signData] = await Promise.all([
+    loadImageData(asset("/QUwhitebg.png")),
+    loadImageData(asset("/QUsign.png")),
+  ]);
+
+  // Navy header band (taller, to fit logo above heading)
   doc.setFillColor(...NAVY);
-  doc.rect(0, 0, pageWidth, 24, "F");
+  doc.rect(0, 0, pageWidth, 32, "F");
   doc.setFillColor(...GOLD);
-  doc.rect(0, 24, pageWidth, 2, "F");
+  doc.rect(0, 32, pageWidth, 2, "F");
+
+  // QU white logo centered above heading. 1501x406 → ratio ~3.696
+  const logoW = 50;
+  const logoH = logoW * (406 / 1501);
+  doc.addImage(logoData, "PNG", (pageWidth - logoW) / 2, 4, logoW, logoH);
 
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(16);
-  doc.text("Office of International Admissions — GPA Report", pageWidth / 2, 16, {
+  doc.setFontSize(14);
+  doc.text("Office of International Admissions — GPA Report", pageWidth / 2, 27, {
     align: "center",
   });
 
   // Student info block
   doc.setTextColor(20, 20, 20);
   doc.setFontSize(11);
-  let y = 36;
+  let y = 42;
+  const studentStartY = y;
   const writeRow = (label: string, value: string) => {
     doc.setFont("helvetica", "bold");
     doc.text(`${label}:`, 14, y);
@@ -82,9 +105,25 @@ export function downloadReport(data: ReportData) {
   writeRow("Country", data.student.country);
   writeRow("QU ID", data.student.quId);
   writeRow("Calculated by", data.student.calculatedBy);
-  doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth - 14, 36, {
+  doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth - 14, studentStartY, {
     align: "right",
   });
+
+  // QU sign tucked below "Generated", filling the space to the right of the student info rows.
+  // QUsign is ~square (873x857). Space available: top = studentStartY+4, bottom = y (last row baseline).
+  const signTop = studentStartY + 4;
+  const signBottom = y;
+  const signSize = Math.max(0, signBottom - signTop);
+  if (signSize > 0) {
+    doc.addImage(
+      signData,
+      "PNG",
+      pageWidth - 14 - signSize,
+      signTop,
+      signSize,
+      signSize,
+    );
+  }
 
   // All courses table (sorted by semester)
   const sorted = [...data.converted].sort((a, b) => {
@@ -162,32 +201,24 @@ export function downloadReport(data: ReportData) {
     afterSemY + 16,
   );
   doc.text(
-    `Foreign scale: ${data.scale.foreignKind}  |  US scale: ${data.scale.usKind}`,
+    `Foreign scale to US scale`,
     14,
     afterSemY + 22,
   );
 
+  const pointsFor = (usGrade: string): string => {
+    const key = usGrade.trim().toUpperCase();
+    const v = data.letterToGpa[key];
+    return v === undefined ? "—" : v.toFixed(2);
+  };
+
   autoTable(doc, {
     startY: afterSemY + 26,
-    head: [["Foreign Grade", "US Grade"]],
-    body: data.scale.rows.map((r) => [r.foreignGrade, r.usGrade]),
+    head: [["Foreign Grade", "US Grade", "GPA Points"]],
+    body: data.scale.rows.map((r) => [r.foreignGrade, r.usGrade, pointsFor(r.usGrade)]),
     headStyles: { fillColor: NAVY, textColor: 255 },
     styles: { fontSize: 9 },
   });
-
-  if (data.scale.usKind === "letter") {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const y2 = (doc as any).lastAutoTable?.finalY ?? afterSemY + 40;
-    doc.setFontSize(11);
-    doc.text("US letter → GPA points", 14, y2 + 10);
-    autoTable(doc, {
-      startY: y2 + 14,
-      head: [["Letter", "Points"]],
-      body: Object.entries(data.letterToGpa).map(([k, v]) => [k, v.toFixed(2)]),
-      headStyles: { fillColor: NAVY, textColor: 255 },
-      styles: { fontSize: 9 },
-    });
-  }
 
   const filename = `gpa-report-${data.student.quId || data.student.name || "student"}.pdf`;
   doc.save(filename);

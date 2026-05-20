@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { asset } from "./lib/basePath";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,6 +16,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Office of International Admissions — GPA Calculator",
   description: "Convert foreign grades to US GPA with live recalculation.",
+  icons: {
+    icon: asset("/icon.png"),
+  },
 };
 
 export default function RootLayout({
