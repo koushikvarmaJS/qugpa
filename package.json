@@ -7,8 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "postbuild": "touch out/.nojekyll",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d build"
+    "deploy": "gh-pages -d out --dotfiles"
   },
   "dependencies": {
     "jspdf": "^4.2.1",
