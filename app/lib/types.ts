@@ -8,6 +8,7 @@ export interface ScaleRow {
 }
 
 export interface GradingScale {
+  name: string;
   foreignKind: ForeignGradeKind;
   usKind: USScaleKind;
   rows: ScaleRow[];

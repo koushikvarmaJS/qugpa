@@ -132,6 +132,16 @@ export function ScaleEditor({ scale, letterToGpa, onChange, onLetterToGpaChange 
         Define how foreign grades map to the US letter scale. Inputs are restricted to the selected type.
       </p>
 
+      <label className="mt-5 block text-sm">
+        <span className="block font-medium text-slate-700">Grading scale name</span>
+        <input
+          className={`${inputBase} mt-1`}
+          value={scale.name}
+          onChange={(e) => onChange({ ...scale, name: e.target.value })}
+          placeholder="e.g. India CBSE Class XII"
+        />
+      </label>
+
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <label className="block text-sm">
           <span className="block font-medium text-slate-700">Foreign grade type</span>

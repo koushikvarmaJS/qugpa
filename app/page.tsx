@@ -12,6 +12,7 @@ import { CoursesTable } from "./components/CoursesTable";
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 const initialScale: GradingScale = {
+  name: "",
   foreignKind: "letter",
   usKind: "letter",
   rows: [

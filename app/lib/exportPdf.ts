@@ -157,13 +157,18 @@ export function downloadReport(data: ReportData) {
   doc.text("Grading scale used", 14, afterSemY + 10);
   doc.setFontSize(9);
   doc.text(
-    `Foreign scale: ${data.scale.foreignKind}  |  US scale: ${data.scale.usKind}`,
+    `Name: ${data.scale.name || "—"}`,
     14,
     afterSemY + 16,
   );
+  doc.text(
+    `Foreign scale: ${data.scale.foreignKind}  |  US scale: ${data.scale.usKind}`,
+    14,
+    afterSemY + 22,
+  );
 
   autoTable(doc, {
-    startY: afterSemY + 20,
+    startY: afterSemY + 26,
     head: [["Foreign Grade", "US Grade"]],
     body: data.scale.rows.map((r) => [r.foreignGrade, r.usGrade]),
     headStyles: { fillColor: NAVY, textColor: 255 },
