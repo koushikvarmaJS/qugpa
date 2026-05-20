@@ -51,36 +51,45 @@ export function CoursesTable({ courses, converted, scale, onChange }: Props) {
   const convertedById = new Map(converted.map((c) => [c.course.id, c]));
 
   const gradePlaceholder =
-    scale.foreignKind === "letter" ? "A" : scale.foreignKind === "numeric" ? "85" : "85";
+    scale.foreignKind === "letter"
+      ? "A"
+      : scale.foreignKind === "numeric" || scale.foreignKind === "range"
+        ? "85"
+        : scale.foreignKind === "alphanumeric"
+          ? "A1"
+          : "Pass";
+
+  const cellInput =
+    "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#0F2D52] focus:outline-none focus:ring-2 focus:ring-[#0F2D52]/20";
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <h2 className="text-lg font-semibold text-[#0F2D52]">Courses</h2>
       <p className="mt-1 text-sm text-slate-500">
         Semester/year and credits accept numbers only. Grade accepts the {scale.foreignKind} format
         set above. Use the arrows to reorder.
       </p>
 
-      <div className="mt-4 overflow-x-auto">
+      <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-slate-50/60">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-slate-500">
-              <th className="py-2 pr-1 font-medium w-12"></th>
-              <th className="py-2 pr-3 font-medium w-24">Sem/Year</th>
-              <th className="py-2 pr-3 font-medium">Course</th>
-              <th className="py-2 pr-3 font-medium w-20">Credits</th>
-              <th className="py-2 pr-3 font-medium w-28">Grade</th>
-              <th className="py-2 pr-3 font-medium w-24">US</th>
-              <th className="py-2 pr-3 font-medium w-24">Pts</th>
-              <th className="py-2 pr-3 w-10"></th>
+            <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+              <th className="px-3 py-3 font-semibold w-12"></th>
+              <th className="px-3 py-3 font-semibold w-24">Sem/Year</th>
+              <th className="px-3 py-3 font-semibold">Course</th>
+              <th className="px-3 py-3 font-semibold w-24">Credits</th>
+              <th className="px-3 py-3 font-semibold w-28">Grade</th>
+              <th className="px-3 py-3 font-semibold w-24">US</th>
+              <th className="px-3 py-3 font-semibold w-24">Pts</th>
+              <th className="px-3 py-3 w-10"></th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-slate-200">
             {courses.map((c, i) => {
               const cc = convertedById.get(c.id);
               return (
-                <tr key={c.id} className="border-t border-slate-100 align-top">
-                  <td className="py-1.5 pr-1">
+                <tr key={c.id} className="bg-white align-middle">
+                  <td className="px-3 py-2">
                     <div className="flex flex-col">
                       <button
                         onClick={() => move(i, -1)}
@@ -100,44 +109,44 @@ export function CoursesTable({ courses, converted, scale, onChange }: Props) {
                       </button>
                     </div>
                   </td>
-                  <td className="py-1.5 pr-3">
+                  <td className="px-3 py-2">
                     <input
                       inputMode="numeric"
-                      className="w-full rounded-md border border-slate-300 px-2 py-1 focus:border-[#0F2D52] focus:outline-none focus:ring-1 focus:ring-[#0F2D52]"
+                      className={cellInput}
                       value={c.semester}
                       onChange={(e) => update(c.id, { semester: e.target.value })}
                       placeholder="1"
                     />
                   </td>
-                  <td className="py-1.5 pr-3">
+                  <td className="px-3 py-2">
                     <input
-                      className="w-full rounded-md border border-slate-300 px-2 py-1 focus:border-[#0F2D52] focus:outline-none focus:ring-1 focus:ring-[#0F2D52]"
+                      className={cellInput}
                       value={c.name}
                       onChange={(e) => update(c.id, { name: e.target.value })}
                       placeholder="Course name"
                     />
                   </td>
-                  <td className="py-1.5 pr-3">
+                  <td className="px-3 py-2">
                     <input
                       inputMode="decimal"
-                      className="w-full rounded-md border border-slate-300 px-2 py-1 focus:border-[#0F2D52] focus:outline-none focus:ring-1 focus:ring-[#0F2D52]"
+                      className={cellInput}
                       value={c.credits}
                       onChange={(e) => update(c.id, { credits: e.target.value })}
                       placeholder="3"
                     />
                   </td>
-                  <td className="py-1.5 pr-3">
+                  <td className="px-3 py-2">
                     <input
-                      className="w-full rounded-md border border-slate-300 px-2 py-1 focus:border-[#0F2D52] focus:outline-none focus:ring-1 focus:ring-[#0F2D52]"
+                      className={cellInput}
                       value={c.grade}
                       onChange={(e) => update(c.id, { grade: e.target.value })}
                       placeholder={gradePlaceholder}
                     />
                   </td>
-                  <td className="py-1.5 pr-3 text-sm text-slate-700">
+                  <td className="px-3 py-2 text-sm font-medium text-slate-700">
                     {cc?.usGrade ?? "—"}
                   </td>
-                  <td className="py-1.5 pr-3 text-sm text-slate-700">
+                  <td className="px-3 py-2 text-sm text-slate-700">
                     {cc?.gpaPoints !== undefined && cc?.gpaPoints !== null
                       ? cc.gpaPoints.toFixed(2)
                       : "—"}
@@ -145,10 +154,10 @@ export function CoursesTable({ courses, converted, scale, onChange }: Props) {
                       <div className="text-xs text-rose-600">{cc.error}</div>
                     )}
                   </td>
-                  <td className="py-1.5 pr-3 text-right">
+                  <td className="px-3 py-2 text-right">
                     <button
                       onClick={() => removeRow(c.id)}
-                      className="text-sm text-rose-600 hover:underline"
+                      className="rounded-md p-1 text-sm text-rose-600 hover:bg-rose-50"
                       aria-label="Remove course"
                     >
                       ✕
@@ -159,31 +168,30 @@ export function CoursesTable({ courses, converted, scale, onChange }: Props) {
             })}
           </tbody>
         </table>
+      </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+        <div className="flex items-center gap-1 rounded-md border border-slate-300 bg-white p-0.5">
+          <input
+            inputMode="numeric"
+            value={bulkCount}
+            onChange={(e) => setBulkCount(e.target.value.replace(/[^\d]/g, ""))}
+            className="w-12 rounded-md border-0 bg-transparent px-2 py-1 text-center text-sm focus:outline-none"
+            aria-label="Number of rows to add"
+          />
           <button
-            onClick={addRow}
-            className="rounded-md border border-[#0F2D52] px-3 py-1.5 text-sm font-medium text-[#0F2D52] hover:bg-[#0F2D52] hover:text-white"
+            onClick={addManyRows}
+            className="rounded-md px-3 py-1.5 text-sm font-medium text-[#0F2D52] hover:bg-[#0F2D52]/10"
           >
-            + Add course
+            + Add rows
           </button>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={addManyRows}
-              className="rounded-md border border-[#0F2D52] px-3 py-1.5 text-sm font-medium text-[#0F2D52] hover:bg-[#0F2D52] hover:text-white"
-            >
-              + Add
-            </button>
-            <input
-              inputMode="numeric"
-              value={bulkCount}
-              onChange={(e) => setBulkCount(e.target.value.replace(/[^\d]/g, ""))}
-              className="w-14 rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-[#0F2D52] focus:outline-none focus:ring-1 focus:ring-[#0F2D52]"
-              aria-label="Number of rows to add"
-            />
-            <span className="text-sm text-slate-500">rows</span>
-          </div>
         </div>
+        <button
+          onClick={addRow}
+          className="rounded-md border border-[#0F2D52] bg-[#0F2D52] px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-[#1B3F6D]"
+        >
+          + Add course
+        </button>
       </div>
     </section>
   );

@@ -24,7 +24,7 @@ export function matchScaleRow(scale: GradingScale, foreignGrade: string): ScaleR
   const g = foreignGrade.trim();
   if (!g) return null;
 
-  if (scale.foreignKind === "letter") {
+  if (scale.foreignKind === "letter" || scale.foreignKind === "alphanumeric" || scale.foreignKind === "text") {
     return scale.rows.find((r) => norm(r.foreignGrade) === norm(g)) ?? null;
   }
 
@@ -77,16 +77,10 @@ export function convertCourse(
     };
   }
 
-  let gpaPoints: number | null = null;
-  if (scale.usKind === "numeric") {
-    const v = parseFloat(row.usGrade);
-    gpaPoints = Number.isNaN(v) ? null : v;
-  } else {
-    const key = Object.keys(letterToGpa).find(
-      (k) => norm(k) === norm(row.usGrade),
-    );
-    gpaPoints = key !== undefined ? letterToGpa[key] : null;
-  }
+  const key = Object.keys(letterToGpa).find(
+    (k) => norm(k) === norm(row.usGrade),
+  );
+  const gpaPoints = key !== undefined ? letterToGpa[key] : null;
 
   return {
     course,

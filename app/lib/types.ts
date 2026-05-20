@@ -1,5 +1,5 @@
-export type USScaleKind = "numeric" | "letter";
-export type ForeignGradeKind = "letter" | "numeric" | "range";
+export type USScaleKind = "letter";
+export type ForeignGradeKind = "letter" | "numeric" | "range" | "alphanumeric" | "text";
 
 export interface ScaleRow {
   id: string;

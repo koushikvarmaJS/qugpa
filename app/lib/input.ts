@@ -6,6 +6,12 @@ export function sanitizeByKind(value: string, kind: GradeKind): string {
   if (kind === "letter") {
     return value.replace(/[^A-Za-z+\-]/g, "").toUpperCase();
   }
+  if (kind === "alphanumeric") {
+    return value.replace(/[^A-Za-z0-9+\-]/g, "").toUpperCase();
+  }
+  if (kind === "text") {
+    return value;
+  }
   if (kind === "numeric") {
     let v = value.replace(/[^\d.]/g, "");
     const firstDot = v.indexOf(".");

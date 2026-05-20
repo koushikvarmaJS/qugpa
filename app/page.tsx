@@ -52,7 +52,7 @@ export default function Home() {
   };
 
   const inputCls =
-    "mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 focus:border-[#0F2D52] focus:outline-none focus:ring-1 focus:ring-[#0F2D52]";
+    "mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#0F2D52] focus:outline-none focus:ring-2 focus:ring-[#0F2D52]/20";
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -70,9 +70,9 @@ export default function Home() {
       </header>
 
       <main className="mx-auto max-w-5xl space-y-6 px-6 py-8">
-        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-[#0F2D52]">Student information</h2>
-          <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <label className="block text-sm">
               <span className="font-medium text-slate-700">Name</span>
               <input
@@ -126,7 +126,7 @@ export default function Home() {
           onChange={setCourses}
         />
 
-        <section className="rounded-lg border border-[#0F2D52] bg-white p-5 shadow-sm">
+        <section className="rounded-xl border border-[#0F2D52] bg-white p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <div className="text-sm font-medium text-slate-500">Current GPA</div>
@@ -134,13 +134,10 @@ export default function Home() {
                 <span className="text-4xl font-bold text-[#F1B82D]">
                   {gpa !== null ? formatGpa(gpa) : "—"}
                 </span>
-                <span className="ml-2 text-base text-slate-200">
-                  /{scale.usKind === "letter" ? "4" : "—"}
-                </span>
+                <span className="ml-2 text-base text-slate-200">/4</span>
               </div>
               <div className="mt-1 text-xs text-slate-500">
-                Across {totalCredits.toFixed(2)} credits ·{" "}
-                {scale.usKind === "letter" ? "letter→GPA" : "numeric"} US scale
+                Across {totalCredits.toFixed(2)} credits · letter→GPA US scale
               </div>
             </div>
             <button
