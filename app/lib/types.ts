@@ -22,9 +22,17 @@ export interface Course {
   grade: string;
 }
 
-export interface StudentInfo {
+export interface School {
+  id: string;
   name: string;
   country: string;
+  scale: GradingScale;
+  letterToGpa: Record<string, number>;
+  courses: Course[];
+}
+
+export interface StudentInfo {
+  name: string;
   quId: string;
   calculatedBy: string;
 }

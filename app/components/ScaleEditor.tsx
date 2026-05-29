@@ -138,7 +138,7 @@ export function ScaleEditor({ scale, letterToGpa, onChange, onLetterToGpaChange 
           className={`${inputBase} mt-1`}
           value={scale.name}
           onChange={(e) => onChange({ ...scale, name: e.target.value })}
-          placeholder="e.g. India CBSE Class XII"
+          placeholder="e.g. US Common Scale"
         />
       </label>
 

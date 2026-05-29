@@ -1,56 +1,26 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import type { GradingScale, StudentInfo } from "./types";
+import type { School, StudentInfo } from "./types";
 import type { ConvertedCourse } from "./gpa";
 import { formatGpa } from "./format";
 import { asset } from "./basePath";
 
-interface ReportData {
-  student: StudentInfo;
-  scale: GradingScale;
-  letterToGpa: Record<string, number>;
+export interface SchoolReport {
+  school: School;
   converted: ConvertedCourse[];
   gpa: number | null;
+  totalCredits: number;
+}
+
+interface ReportData {
+  student: StudentInfo;
+  schools: SchoolReport[];
+  cumulativeGpa: number | null;
+  cumulativeCredits: number;
 }
 
 const NAVY: [number, number, number] = [15, 45, 82];
 const GOLD: [number, number, number] = [241, 184, 45];
-
-interface SemesterStat {
-  semester: string;
-  credits: number;
-  points: number;
-  gpa: number | null;
-  rows: ConvertedCourse[];
-}
-
-function semesterBreakdown(converted: ConvertedCourse[]): SemesterStat[] {
-  const byKey = new Map<string, SemesterStat>();
-  for (const c of converted) {
-    const key = c.course.semester || "—";
-    let stat = byKey.get(key);
-    if (!stat) {
-      stat = { semester: key, credits: 0, points: 0, gpa: null, rows: [] };
-      byKey.set(key, stat);
-    }
-    stat.rows.push(c);
-    if (c.gpaPoints !== null && c.credits !== null) {
-      stat.credits += c.credits;
-      stat.points += c.gpaPoints * c.credits;
-    }
-  }
-  for (const stat of byKey.values()) {
-    stat.gpa = stat.credits > 0 ? stat.points / stat.credits : null;
-  }
-  return [...byKey.values()].sort((a, b) => {
-    const sa = parseFloat(a.semester);
-    const sb = parseFloat(b.semester);
-    if (Number.isNaN(sa) && Number.isNaN(sb)) return a.semester.localeCompare(b.semester);
-    if (Number.isNaN(sa)) return 1;
-    if (Number.isNaN(sb)) return -1;
-    return sa - sb;
-  });
-}
 
 async function loadImageData(url: string): Promise<string> {
   const res = await fetch(url);
@@ -63,22 +33,30 @@ async function loadImageData(url: string): Promise<string> {
   });
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const lastTableY = (doc: any): number => doc.lastAutoTable?.finalY ?? 0;
+
+function ensureSpace(doc: jsPDF, y: number, needed: number): number {
+  const pageHeight = doc.internal.pageSize.getHeight();
+  if (y + needed > pageHeight - 14) {
+    doc.addPage();
+    return 20;
+  }
+  return y;
+}
+
 export async function downloadReport(data: ReportData) {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
 
-  const [logoData, signData] = await Promise.all([
-    loadImageData(asset("/QUwhitebg.png")),
-    loadImageData(asset("/QUsign.png")),
-  ]);
+  const logoData = await loadImageData(asset("/QUwhitebg.png"));
 
-  // Navy header band (taller, to fit logo above heading)
+  // Navy header band with logo above title
   doc.setFillColor(...NAVY);
   doc.rect(0, 0, pageWidth, 32, "F");
   doc.setFillColor(...GOLD);
   doc.rect(0, 32, pageWidth, 2, "F");
 
-  // QU white logo centered above heading. 1501x406 → ratio ~3.696
   const logoW = 50;
   const logoH = logoW * (406 / 1501);
   doc.addImage(logoData, "PNG", (pageWidth - logoW) / 2, 4, logoW, logoH);
@@ -89,11 +67,11 @@ export async function downloadReport(data: ReportData) {
     align: "center",
   });
 
-  // Student info block
+  // Student info: Name + QU ID on left; Generated + Calculated by on right
   doc.setTextColor(20, 20, 20);
   doc.setFontSize(11);
-  let y = 42;
-  const studentStartY = y;
+  const studentStartY = 42;
+  let y = studentStartY;
   const writeRow = (label: string, value: string) => {
     doc.setFont("helvetica", "bold");
     doc.text(`${label}:`, 14, y);
@@ -102,123 +80,126 @@ export async function downloadReport(data: ReportData) {
     y += 6;
   };
   writeRow("Name", data.student.name);
-  writeRow("Country", data.student.country);
   writeRow("QU ID", data.student.quId);
-  writeRow("Calculated by", data.student.calculatedBy);
-  doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth - 14, studentStartY, {
-    align: "right",
-  });
 
-  // QU sign tucked below "Generated", filling the space to the right of the student info rows.
-  // QUsign is ~square (873x857). Space available: top = studentStartY+4, bottom = y (last row baseline).
-  const signTop = studentStartY + 4;
-  const signBottom = y;
-  const signSize = Math.max(0, signBottom - signTop);
-  if (signSize > 0) {
-    doc.addImage(
-      signData,
-      "PNG",
-      pageWidth - 14 - signSize,
-      signTop,
-      signSize,
-      signSize,
-    );
-  }
+  // Right column: Generated, Calculated by
+  doc.setFont("helvetica", "normal");
+  doc.text(
+    `Generated: ${new Date().toLocaleDateString()}`,
+    pageWidth - 14,
+    studentStartY,
+    { align: "right" },
+  );
+  doc.text(
+    `Calculated by: ${data.student.calculatedBy || "—"}`,
+    pageWidth - 14,
+    studentStartY + 6,
+    { align: "right" },
+  );
 
-  // All courses table (sorted by semester)
-  const sorted = [...data.converted].sort((a, b) => {
-    const sa = parseFloat(a.course.semester);
-    const sb = parseFloat(b.course.semester);
-    if (Number.isNaN(sa) && Number.isNaN(sb)) return 0;
-    if (Number.isNaN(sa)) return 1;
-    if (Number.isNaN(sb)) return -1;
-    return sa - sb;
-  });
+  let cursorY = Math.max(y, studentStartY + 12) + 4;
 
-  autoTable(doc, {
-    startY: y + 4,
-    head: [["Semester/Year", "Course", "Credits", "Foreign Grade", "US Grade", "GPA Pts"]],
-    body: sorted.map((c) => [
-      c.course.semester || "—",
-      c.course.name || "—",
-      c.course.credits || "—",
-      c.course.grade || "—",
-      c.usGrade ?? (c.error ?? "—"),
-      c.gpaPoints !== null ? c.gpaPoints.toFixed(2) : "—",
-    ]),
-    headStyles: { fillColor: NAVY, textColor: 255 },
-    styles: { fontSize: 9 },
-    alternateRowStyles: { fillColor: [248, 248, 252] },
-  });
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const afterCoursesY = (doc as any).lastAutoTable?.finalY ?? y + 8;
-
-  // Final GPA highlight box
+  // Cumulative GPA highlight (early — most important number)
   doc.setFillColor(...GOLD);
-  doc.rect(14, afterCoursesY + 6, pageWidth - 28, 12, "F");
+  doc.rect(14, cursorY, pageWidth - 28, 12, "F");
   doc.setTextColor(...NAVY);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
-  const finalGpaText =
-    data.gpa !== null
-      ? `${formatGpa(data.gpa)}${data.scale.usKind === "letter" ? "/4" : ""}`
-      : "—";
-  doc.text(`Final GPA: ${finalGpaText}`, pageWidth / 2, afterCoursesY + 14, {
-    align: "center",
-  });
-
-  // Semester-wise GPA section (before grading scale)
-  doc.setTextColor(20, 20, 20);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
-  doc.text("Semester-wise grades", 14, afterCoursesY + 28);
-
-  const semesters = semesterBreakdown(data.converted);
-  autoTable(doc, {
-    startY: afterCoursesY + 32,
-    head: [["Semester/Year", "Courses", "Credits", "Semester GPA"]],
-    body: semesters.map((s) => [
-      s.semester,
-      String(s.rows.length),
-      s.credits.toFixed(2),
-      s.gpa !== null ? s.gpa.toFixed(2) : "—",
-    ]),
-    headStyles: { fillColor: NAVY, textColor: 255 },
-    styles: { fontSize: 9 },
-  });
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const afterSemY = (doc as any).lastAutoTable?.finalY ?? afterCoursesY + 50;
-
-  // Grading scale used
-  doc.setFontSize(11);
-  doc.text("Grading scale used", 14, afterSemY + 10);
-  doc.setFontSize(9);
+  const cumText =
+    data.cumulativeGpa !== null ? `${formatGpa(data.cumulativeGpa)}/4` : "—";
   doc.text(
-    `Name: ${data.scale.name || "—"}`,
-    14,
-    afterSemY + 16,
+    `Cumulative GPA: ${cumText}  ·  ${data.cumulativeCredits.toFixed(2)} credits  ·  ${data.schools.length} school${data.schools.length === 1 ? "" : "s"}`,
+    pageWidth / 2,
+    cursorY + 8,
+    { align: "center" },
   );
-  doc.text(
-    `Foreign scale to US scale`,
-    14,
-    afterSemY + 22,
-  );
+  cursorY += 18;
 
-  const pointsFor = (usGrade: string): string => {
-    const key = usGrade.trim().toUpperCase();
-    const v = data.letterToGpa[key];
-    return v === undefined ? "—" : v.toFixed(2);
-  };
+  // Per-school sections
+  for (let i = 0; i < data.schools.length; i++) {
+    const sr = data.schools[i];
 
-  autoTable(doc, {
-    startY: afterSemY + 26,
-    head: [["Foreign Grade", "US Grade", "GPA Points"]],
-    body: data.scale.rows.map((r) => [r.foreignGrade, r.usGrade, pointsFor(r.usGrade)]),
-    headStyles: { fillColor: NAVY, textColor: 255 },
-    styles: { fontSize: 9 },
-  });
+    cursorY = ensureSpace(doc, cursorY, 40);
+
+    // School header
+    doc.setTextColor(...NAVY);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    const title = `${i + 1}. ${sr.school.name || "Untitled school"}${sr.school.country ? `  ·  ${sr.school.country}` : ""}`;
+    doc.text(title, 14, cursorY);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(80, 80, 80);
+    const schoolStatRight =
+      sr.gpa !== null
+        ? `School GPA: ${formatGpa(sr.gpa)}  ·  ${sr.totalCredits.toFixed(2)} credits`
+        : "No GPA yet";
+    doc.text(schoolStatRight, pageWidth - 14, cursorY, { align: "right" });
+
+    cursorY += 4;
+
+    // Courses table (sorted by semester)
+    const sorted = [...sr.converted].sort((a, b) => {
+      const sa = parseFloat(a.course.semester);
+      const sb = parseFloat(b.course.semester);
+      if (Number.isNaN(sa) && Number.isNaN(sb)) return 0;
+      if (Number.isNaN(sa)) return 1;
+      if (Number.isNaN(sb)) return -1;
+      return sa - sb;
+    });
+
+    autoTable(doc, {
+      startY: cursorY,
+      head: [["Sem/Yr", "Course", "Credits", "Foreign", "US", "Pts"]],
+      body: sorted.map((c) => [
+        c.course.semester || "—",
+        c.course.name || "—",
+        c.course.credits || "—",
+        c.course.grade || "—",
+        c.usGrade ?? (c.error ?? "—"),
+        c.gpaPoints !== null ? c.gpaPoints.toFixed(2) : "—",
+      ]),
+      headStyles: { fillColor: NAVY, textColor: 255 },
+      styles: { fontSize: 9 },
+      alternateRowStyles: { fillColor: [248, 248, 252] },
+      margin: { left: 14, right: 14 },
+    });
+
+    cursorY = lastTableY(doc) + 6;
+    cursorY = ensureSpace(doc, cursorY, 20);
+
+    // Grading scale table (Foreign | US | Points)
+    doc.setTextColor(20, 20, 20);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text(
+      `Grading scale used: ${sr.school.scale.name || "—"}`,
+      14,
+      cursorY,
+    );
+
+    const pointsFor = (usGrade: string): string => {
+      const key = usGrade.trim().toUpperCase();
+      const v = sr.school.letterToGpa[key];
+      return v === undefined ? "—" : v.toFixed(2);
+    };
+
+    autoTable(doc, {
+      startY: cursorY + 3,
+      head: [["Foreign Grade", "US Grade", "GPA Points"]],
+      body: sr.school.scale.rows.map((r) => [
+        r.foreignGrade,
+        r.usGrade,
+        pointsFor(r.usGrade),
+      ]),
+      headStyles: { fillColor: NAVY, textColor: 255 },
+      styles: { fontSize: 9 },
+      margin: { left: 14, right: 14 },
+    });
+
+    cursorY = lastTableY(doc) + 10;
+  }
 
   const filename = `gpa-report-${data.student.quId || data.student.name || "student"}.pdf`;
   doc.save(filename);
