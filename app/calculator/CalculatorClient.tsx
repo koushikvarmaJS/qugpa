@@ -309,7 +309,13 @@ export default function CalculatorClient() {
                   disabled={saving || hydrating}
                   className="rounded-md border border-[#0F2D52] bg-white px-4 py-2 text-sm font-semibold text-[#0F2D52] transition hover:bg-[#0F2D52] hover:text-white disabled:opacity-50"
                 >
-                  {saving ? "Saving…" : "Save transcript"}
+                  {(() => {
+                    const isUpdate =
+                      !!studentIdParam &&
+                      student.quId.trim() === studentIdParam;
+                    if (saving) return isUpdate ? "Updating…" : "Saving…";
+                    return isUpdate ? "Update transcript" : "Save transcript";
+                  })()}
                 </button>
                 <button
                   onClick={handleDownload}

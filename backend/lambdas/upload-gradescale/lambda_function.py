@@ -2,17 +2,29 @@
 POST /gradescales
 Body JSON: {
   instituteId, name, country, foreignKind,
-  scale: { foreignGrade: usLetter, ... }
+  scale: { foreignGrade: usLetter, ... },
+  letterToGpa: { usLetter: gpaPoints, ... }
 }
 """
 
 import json
 import time
 import boto3
+from decimal import Decimal
 
 TABLE_GRADESCALE = "gradescales"
 ddb = boto3.resource("dynamodb")
 table = ddb.Table(TABLE_GRADESCALE)
+
+
+def _to_decimal(obj):
+    if isinstance(obj, float):
+        return Decimal(str(obj))
+    if isinstance(obj, dict):
+        return {k: _to_decimal(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_to_decimal(v) for v in obj]
+    return obj
 
 
 def _resp(status, body):
@@ -36,16 +48,21 @@ def lambda_handler(event, _context):
         if not isinstance(scale, dict):
             scale = {}
 
+        letter_to_gpa = body.get("letterToGpa")
+        if not isinstance(letter_to_gpa, dict):
+            letter_to_gpa = {}
+
         item = {
             "instituteId": institute_id,
             "name": body.get("name") or "",
             "country": body.get("country") or "",
             "foreignKind": body.get("foreignKind") or "letter",
             "scale": scale,
+            "letterToGpa": letter_to_gpa,
             "updatedAt": int(time.time() * 1000),
         }
 
-        table.put_item(Item=item)
+        table.put_item(Item=_to_decimal(item))
         return _resp(200, {"ok": True, "item": item})
     except Exception as e:
         print(f"error: {e}")

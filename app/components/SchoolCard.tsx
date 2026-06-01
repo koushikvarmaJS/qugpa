@@ -113,6 +113,10 @@ export function SchoolCard({
 
           <ScaleSearch
             onPick={(saved: SavedGradeScale) => {
+              const hasLetterMap =
+                saved.letterToGpa &&
+                typeof saved.letterToGpa === "object" &&
+                Object.keys(saved.letterToGpa).length > 0;
               onChange({
                 ...school,
                 instituteId: saved.instituteId,
@@ -126,6 +130,9 @@ export function SchoolCard({
                     usGrade: u,
                   })),
                 },
+                ...(hasLetterMap
+                  ? { letterToGpa: { ...saved.letterToGpa } }
+                  : {}),
               });
             }}
           />

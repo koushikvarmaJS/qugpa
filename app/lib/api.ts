@@ -31,6 +31,7 @@ export interface SavedGradeScale {
   country: string;
   foreignKind: "letter" | "numeric" | "range" | "alphanumeric" | "text";
   scale: Record<string, string>;
+  letterToGpa?: Record<string, number>;
   updatedAt: number;
 }
 
