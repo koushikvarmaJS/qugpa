@@ -5,6 +5,7 @@ import type { GradingScale, ScaleRow, ForeignGradeKind } from "../lib/types";
 import { sanitizeByKind } from "../lib/input";
 import defaultLetterScale from "../lib/defaultLetterScale.json";
 import altLetterScale from "../lib/altLetterScale.json";
+import { deleteGradeScale, saveGradeScale } from "../lib/api";
 
 interface GpaEntry {
   id: string;
@@ -15,9 +16,20 @@ interface GpaEntry {
 interface Props {
   scale: GradingScale;
   letterToGpa: Record<string, number>;
+  schoolName?: string;
+  schoolCountry?: string;
+  instituteId?: string;
   onChange: (s: GradingScale) => void;
   onLetterToGpaChange: (m: Record<string, number>) => void;
+  onInstituteIdChange?: (id: string) => void;
 }
+
+const kebab = (s: string) =>
+  s
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
 
 type Preset = "standard" | "alternate" | "custom";
 
@@ -40,10 +52,87 @@ function detectPreset(map: Record<string, number>): Preset {
   return "custom";
 }
 
-export function ScaleEditor({ scale, letterToGpa, onChange, onLetterToGpaChange }: Props) {
+export function ScaleEditor({
+  scale,
+  letterToGpa,
+  schoolName = "",
+  schoolCountry = "",
+  instituteId = "",
+  onChange,
+  onLetterToGpaChange,
+  onInstituteIdChange,
+}: Props) {
   const preset = useMemo(() => detectPreset(letterToGpa), [letterToGpa]);
   const [editing, setEditing] = useState(false);
   const [entries, setEntries] = useState<GpaEntry[]>([]);
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [saveForm, setSaveForm] = useState({ instituteId: "", name: "", country: "" });
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveOk, setSaveOk] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteMsg, setDeleteMsg] = useState<string | null>(null);
+
+  const handleDeleteScale = async () => {
+    if (!instituteId) return;
+    if (!confirm(`Delete saved scale "${instituteId}"? This removes it for everyone.`)) return;
+    setDeleting(true);
+    setDeleteMsg(null);
+    try {
+      await deleteGradeScale(instituteId);
+      onInstituteIdChange?.("");
+      setDeleteMsg("Deleted.");
+      setTimeout(() => setDeleteMsg(null), 1500);
+    } catch (e) {
+      setDeleteMsg(`Delete failed: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const openSave = () => {
+    setSaveForm({
+      instituteId: instituteId || kebab(schoolName) || "",
+      name: scale.name || schoolName || "",
+      country: schoolCountry || "",
+    });
+    setSaveError(null);
+    setSaveOk(false);
+    setSaveOpen(true);
+  };
+
+  const handleSaveScale = async () => {
+    if (!saveForm.instituteId.trim()) {
+      setSaveError("instituteId is required");
+      return;
+    }
+    setSaving(true);
+    setSaveError(null);
+    setSaveOk(false);
+    const scaleMap: Record<string, string> = {};
+    for (const r of scale.rows) {
+      const f = r.foreignGrade.trim();
+      const u = r.usGrade.trim();
+      if (!f || !u) continue;
+      scaleMap[f] = u;
+    }
+    try {
+      await saveGradeScale({
+        instituteId: saveForm.instituteId.trim(),
+        name: saveForm.name.trim(),
+        country: saveForm.country.trim(),
+        foreignKind: scale.foreignKind,
+        scale: scaleMap,
+      });
+      onInstituteIdChange?.(saveForm.instituteId.trim());
+      setSaveOk(true);
+      setTimeout(() => setSaveOpen(false), 800);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const entriesFromMap = (m: Record<string, number>): GpaEntry[] =>
     Object.entries(m).map(([k, v]) => ({ id: uid(), key: k, value: String(v) }));
@@ -216,7 +305,32 @@ export function ScaleEditor({ scale, letterToGpa, onChange, onLetterToGpaChange 
             </tbody>
           </table>
         </div>
-        <div className="mt-3 flex justify-end">
+        <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+          {deleteMsg && (
+            <span
+              className={`text-xs ${
+                deleteMsg.startsWith("Delete failed") ? "text-rose-600" : "text-emerald-600"
+              }`}
+            >
+              {deleteMsg}
+            </span>
+          )}
+          {instituteId && (
+            <button
+              onClick={handleDeleteScale}
+              disabled={deleting}
+              className="rounded-md border border-rose-300 px-3 py-1.5 text-sm font-medium text-rose-600 transition hover:bg-rose-50 disabled:opacity-50"
+              title={`Delete saved scale ${instituteId}`}
+            >
+              {deleting ? "Deleting…" : "Delete saved scale"}
+            </button>
+          )}
+          <button
+            onClick={openSave}
+            className="rounded-md border border-[#F1B82D] bg-[#F1B82D]/10 px-3 py-1.5 text-sm font-medium text-[#0F2D52] transition hover:bg-[#F1B82D]/30"
+          >
+            Save scale
+          </button>
           <button
             onClick={addRow}
             className="rounded-md border border-[#0F2D52] px-3 py-1.5 text-sm font-medium text-[#0F2D52] transition hover:bg-[#0F2D52] hover:text-white"
@@ -224,6 +338,61 @@ export function ScaleEditor({ scale, letterToGpa, onChange, onLetterToGpaChange 
             + Add row
           </button>
         </div>
+
+        {saveOpen && (
+          <div className="mt-3 rounded-md border border-slate-200 bg-white p-3">
+            <div className="grid gap-2 sm:grid-cols-3">
+              <label className="block text-xs">
+                <span className="font-medium text-slate-700">Institute ID</span>
+                <input
+                  className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-[#0F2D52] focus:outline-none focus:ring-1 focus:ring-[#0F2D52]/20"
+                  value={saveForm.instituteId}
+                  onChange={(e) =>
+                    setSaveForm({ ...saveForm, instituteId: e.target.value })
+                  }
+                  placeholder="iit-bombay"
+                />
+              </label>
+              <label className="block text-xs">
+                <span className="font-medium text-slate-700">Name</span>
+                <input
+                  className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-[#0F2D52] focus:outline-none focus:ring-1 focus:ring-[#0F2D52]/20"
+                  value={saveForm.name}
+                  onChange={(e) => setSaveForm({ ...saveForm, name: e.target.value })}
+                  placeholder="IIT Bombay"
+                />
+              </label>
+              <label className="block text-xs">
+                <span className="font-medium text-slate-700">Country</span>
+                <input
+                  className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-[#0F2D52] focus:outline-none focus:ring-1 focus:ring-[#0F2D52]/20"
+                  value={saveForm.country}
+                  onChange={(e) =>
+                    setSaveForm({ ...saveForm, country: e.target.value })
+                  }
+                  placeholder="India"
+                />
+              </label>
+            </div>
+            <div className="mt-3 flex items-center justify-end gap-2 text-xs">
+              {saveError && <span className="text-rose-600">{saveError}</span>}
+              {saveOk && <span className="text-emerald-600">Saved.</span>}
+              <button
+                onClick={() => setSaveOpen(false)}
+                className="rounded-md px-2 py-1 text-slate-500 hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveScale}
+                disabled={saving}
+                className="rounded-md bg-[#0F2D52] px-3 py-1 font-medium text-white hover:bg-[#1B3F6D] disabled:opacity-50"
+              >
+                {saving ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="mt-6 rounded-lg border border-[#F1B82D]/50 bg-[#FFF8E1] p-5">

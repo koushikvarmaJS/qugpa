@@ -6,6 +6,10 @@ import type { ConvertedCourse } from "../lib/gpa";
 import { formatGpa } from "../lib/format";
 import { ScaleEditor } from "./ScaleEditor";
 import { CoursesTable } from "./CoursesTable";
+import { ScaleSearch } from "./ScaleSearch";
+import type { SavedGradeScale } from "../lib/api";
+
+const uid = () => Math.random().toString(36).slice(2, 10);
 
 interface Props {
   school: School;
@@ -107,11 +111,34 @@ export function SchoolCard({
             </label>
           </div>
 
+          <ScaleSearch
+            onPick={(saved: SavedGradeScale) => {
+              onChange({
+                ...school,
+                instituteId: saved.instituteId,
+                scale: {
+                  ...school.scale,
+                  name: saved.name,
+                  foreignKind: saved.foreignKind,
+                  rows: Object.entries(saved.scale || {}).map(([f, u]) => ({
+                    id: uid(),
+                    foreignGrade: f,
+                    usGrade: u,
+                  })),
+                },
+              });
+            }}
+          />
+
           <ScaleEditor
             scale={school.scale}
             letterToGpa={school.letterToGpa}
+            schoolName={school.name}
+            schoolCountry={school.country}
+            instituteId={school.instituteId}
             onChange={(scale) => onChange({ ...school, scale })}
             onLetterToGpaChange={(letterToGpa) => onChange({ ...school, letterToGpa })}
+            onInstituteIdChange={(instituteId) => onChange({ ...school, instituteId })}
           />
 
           <CoursesTable

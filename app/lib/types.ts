@@ -26,6 +26,7 @@ export interface School {
   id: string;
   name: string;
   country: string;
+  instituteId: string;
   scale: GradingScale;
   letterToGpa: Record<string, number>;
   courses: Course[];
