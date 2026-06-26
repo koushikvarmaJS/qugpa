@@ -105,6 +105,14 @@ export default function CalculatorClient() {
     };
   }, [schoolStats]);
 
+  const handleClear = () => {
+    if (!confirm("Clear all data on this page? This cannot be undone.")) return;
+    setStudent(initialStudent);
+    setSchools([makeInitialSchool()]);
+    setSaveMsg(null);
+    if (studentIdParam) router.replace("/calculator");
+  };
+
   const updateSchool = (id: string, next: School) => {
     setSchools((prev) => prev.map((s) => (s.id === id ? next : s)));
   };
@@ -184,25 +192,47 @@ export default function CalculatorClient() {
             <p className="mt-1 text-sm text-slate-200">
               Foreign-to-US GPA calculator for Quinnipiac University.
             </p>
-            <Link
-              href="/"
-              aria-label="Back to home"
-              className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-white/30 bg-white/10 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-white/20"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-                className="h-3.5 w-3.5"
+            <div className="mt-3 flex items-center gap-2">
+              <Link
+                href="/"
+                aria-label="Back to home"
+                className="inline-flex items-center gap-1.5 rounded-md border border-white/30 bg-white/10 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-white/20"
               >
-                <path
-                  fillRule="evenodd"
-                  d="M12.79 5.23a.75.75 0 010 1.06L9.06 10l3.73 3.71a.75.75 0 11-1.06 1.06l-4.25-4.24a.75.75 0 010-1.06l4.25-4.24a.75.75 0 011.06 0z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              Home
-            </Link>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="h-3.5 w-3.5"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M12.79 5.23a.75.75 0 010 1.06L9.06 10l3.73 3.71a.75.75 0 11-1.06 1.06l-4.25-4.24a.75.75 0 010-1.06l4.25-4.24a.75.75 0 011.06 0z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                Home
+              </Link>
+              <button
+                type="button"
+                onClick={handleClear}
+                aria-label="Clear all data"
+                className="inline-flex items-center gap-1.5 rounded-md border border-white/30 bg-white/10 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-white/20"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="h-3.5 w-3.5"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                Clear
+              </button>
+            </div>
           </div>
           <Image
             src={asset("/QUwhitebg.png")}

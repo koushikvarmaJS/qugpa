@@ -1,12 +1,3 @@
-"""
-GET /transcripts             -> list/search recent transcripts (returns gpa rows)
-GET /transcripts/{studentId} -> fetch the full JSON snapshot from S3
-
-Query params (list):
-  q     - optional, matches studentId exactly OR substring on name (case-insensitive)
-  limit - optional, default 20
-"""
-
 import json
 import boto3
 from botocore.exceptions import ClientError
@@ -68,7 +59,7 @@ def _list(qs):
         lower = q.lower()
         items = [
             it for it in items
-            if it.get("studentId") == q
+            if (isinstance(it.get("studentId"), str) and lower in it["studentId"].lower())
             or (isinstance(it.get("name"), str) and lower in it["name"].lower())
         ]
 
